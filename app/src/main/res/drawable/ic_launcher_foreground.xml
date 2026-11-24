@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A coolant drop with a pulse line cut out (the pumps being watched), in the
+  108dp adaptive-icon canvas, inside the 66dp safe zone.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillType="evenOdd"
+        android:pathData="M54,24 C54,24 32,50 32,63 C32,75.15 41.85,85 54,85 C66.15,85 76,75.15 76,63 C76,50 54,24 54,24 Z M37,64 L45,64 L49,55 L55,73 L60,60 L63,64 L71,64 L71,67.5 L61.2,67.5 L60.6,66.4 L55.4,81 L49.4,63.5 L47.3,67.5 L37,67.5 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="0"
+                android:startY="24"
+                android:endX="0"
+                android:endY="85"
+                android:startColor="#FF6FD3FF"
+                android:endColor="#FF1E6FD9" />
+        </aapt:attr>
+    </path>
+</vector>

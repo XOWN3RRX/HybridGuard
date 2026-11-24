@@ -1,0 +1,17 @@
+.gradle/
+.kotlin/
+build/
+local.properties
+.idea/
+*.iml
+.DS_Store
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+
+# Recorded drive logs can contain the VIN: keep them out of git unless
+# deliberately added as a test fixture.
+*.jsonl
+*.jsonl.gz

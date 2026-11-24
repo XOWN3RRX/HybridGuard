@@ -1,0 +1,9 @@
+{
+  "id": "sae-j1979",
+  "name": "Generic OBD-II (SAE J1979)",
+  "version": 1,
+  "match": { "vinPrefixes": [], "manual": true },
+  "bus": { "protocol": "ISO15765_11_500" },
+  "includes": [],
+  "ecus": { "engine": "7E0" }
+}

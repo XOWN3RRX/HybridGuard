@@ -1,0 +1,13 @@
+{
+  "speed":                ["VSS"],
+  "engineRpm":            ["RPM"],
+  "soc":                  ["BAT_SOC"],
+  "coolantTemp":          ["ECT"],
+  "oilTemp":              ["EOT"],
+  "engineTorqueActual":   ["TQ_ACT"],
+  "engineTorqueFriction": ["TQ_FR"],
+  "engineTorqueReference":["TQ_REF"],
+  "fuelMassRate":         ["FUEL_RATE_ALT"],
+  "ambientTemp":          ["AAT"],
+  "auxVoltage":           ["VPWR"]
+}

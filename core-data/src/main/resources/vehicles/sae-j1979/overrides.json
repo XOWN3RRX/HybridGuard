@@ -1,0 +1,7 @@
+{
+  "note": "Corrections to the OBDb SAE J1979 signalset found on real cars. Empty until a car test shows one.",
+  "signals": {},
+  "commands": {},
+  "addCommands": [],
+  "disableSignals": []
+}

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Session CSV files shared with other apps (mail, Drive, ...). -->
+<paths>
+    <files-path name="sessions" path="sessions/" />
+</paths>

@@ -1,0 +1,6 @@
+{
+  "note": "Gauge full scale for the dashboards (display choices). Engine 2ZR-FXE about 72 kW, traction motor about 53 kW, per Toyota's published figures for the 1.8 hybrid.",
+  "speedMaxKmh": 180,
+  "enginePowerMaxKw": 75,
+  "batteryPowerMaxKw": 55
+}

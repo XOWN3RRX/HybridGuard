@@ -1,0 +1,9 @@
+{
+  "note": "Warm-up driving advice (docs/02 C.6): COLD below the 'warm' thresholds, WARM below the 'ok' thresholds, then OK (shown as GOOD; until app 0.7.5 as the oil temperature); oil is the main input, coolant also has to reach each level. General engine-care values chosen by the owner on 2026-11-13, not Toyota figures: change them here. While COLD, pedal or engine speed at or above the cold limits turns the label red.",
+  "oilWarmFrom": 50,
+  "oilOkFrom": 80,
+  "coolantWarmFrom": 40,
+  "coolantOkFrom": 70,
+  "coldMaxAcceleratorPct": 50,
+  "coldMaxRpm": 3000
+}

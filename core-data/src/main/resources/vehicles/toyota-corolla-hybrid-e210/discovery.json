@@ -1,0 +1,24 @@
+{
+  "note": "Discovery scan plan (docs/05 Phase 1 task 7, docs/02 section D). Read-only: services 21 and 22 only. ECUs most likely to hold the shift position first. 7E2, 7E3 and 7E6 answered the 7DF broadcast as 7EA, 7EB and 7EE on the owner's car; 7E0 and 7E1 gave no reply on their own address and are skipped after 16 silent requests.",
+  "ranges": [
+    { "service": "21", "from": "00", "to": "FF" },
+    { "service": "22", "from": "0100", "to": "01FF" },
+    { "service": "22", "from": "1000", "to": "10FF" },
+    { "service": "22", "from": "1100", "to": "11FF" },
+    { "service": "22", "from": "1500", "to": "16FF" },
+    { "service": "22", "from": "1800", "to": "18FF" },
+    { "service": "22", "from": "1F00", "to": "1FFF" }
+  ],
+  "ecus": [
+    { "hdr": "7D2", "name": "hybrid" },
+    { "hdr": "7E2", "name": "7E2 (answers 7DF as 7EA)" },
+    { "hdr": "7C0", "name": "meter" },
+    { "hdr": "7B0", "name": "brake" },
+    { "hdr": "7C4", "name": "ac" },
+    { "hdr": "747", "name": "battery" },
+    { "hdr": "7E3", "name": "7E3 (answers 7DF as 7EB)" },
+    { "hdr": "7E6", "name": "7E6 (answers 7DF as 7EE)" },
+    { "hdr": "7E0", "name": "engine" },
+    { "hdr": "7E1", "name": "transmission" }
+  ]
+}

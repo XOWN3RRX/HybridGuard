@@ -1,0 +1,23 @@
+{
+  "note": "Battery tab settings for this profile. No chemistry is set: the owner's 2019 1.8 has the 56-cell lithium-ion pack (docs/02 C5, confirmed by the owner), but the profile covers several years and engines, which may carry a NiMH pack instead; the app tells the type from the cell voltages, and the owner can set it in Settings. The limits are HybridGuard guide values (the same as HybridMaster's for the lithium-ion pack), not Toyota specifications: tune them in Settings as the owner's logs show what is normal. Balance and spread are judged at rest (|HV current| below restCurrentA). The NiMH limits apply to block voltages (several cells in series, about 14-16 V each), as NiMH packs usually report them.",
+  "lithiumIon": {
+    "spreadWarnMv": 30,
+    "spreadBadMv": 60,
+    "resistanceRatioWarn": 1.25,
+    "resistanceRatioBad": 1.5,
+    "tempSpreadWarnC": 5,
+    "tempSpreadBadC": 8,
+    "intakeDeltaWarnC": 10,
+    "restCurrentA": 5
+  },
+  "nimh": {
+    "spreadWarnMv": 200,
+    "spreadBadMv": 300,
+    "resistanceRatioWarn": 1.25,
+    "resistanceRatioBad": 1.5,
+    "tempSpreadWarnC": 5,
+    "tempSpreadBadC": 8,
+    "intakeDeltaWarnC": 10,
+    "restCurrentA": 5
+  }
+}

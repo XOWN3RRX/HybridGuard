@@ -1,0 +1,22 @@
+{
+  "id": "toyota-corolla-hybrid-e210",
+  "name": "Toyota Corolla Hybrid (E210)",
+  "version": 11,
+  "years": [2019, 2026],
+  "match": {
+    "vinPrefixes": ["SB1K93BE"],
+    "manual": true
+  },
+  "bus": { "protocol": "ISO15765_11_500" },
+  "includes": ["sae-j1979"],
+  "ecus": {
+    "engine": "7E0",
+    "engine_700": "700",
+    "transmission": "7E1",
+    "hybrid": "7D2",
+    "battery": "747",
+    "meter": "7C0",
+    "ac": "7C4",
+    "brake": "7B0"
+  }
+}
