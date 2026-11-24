@@ -122,13 +122,13 @@ fun LiveScreen(onOpenSettings: () -> Unit, onOpenSession: (String) -> Unit) {
                     if (!s.hasAdapter) {
                         Button(onClick = onOpenSettings) { Text("Choose the adapter") }
                     } else if (s.monitorEnabled && st.phase != MonitorPhase.MONITORING) {
-                        OutlinedButton(onClick = { Monitor.poke() }) { Text("Check now") }
+                        OutlinedButton(onClick = { Monitor.poke(carEvent = true) }) { Text("Check now") }
                     }
                 }
                 if (s.source == DataSource.SIMULATED) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
                         Text("Simulated car (${s.simScenario.label})", Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
-                        FilterChip(simOn, onClick = { Simulator.switch(!simOn, SystemClock.elapsedRealtime()); Monitor.poke() }, label = {
+                        FilterChip(simOn, onClick = { Simulator.switch(!simOn, SystemClock.elapsedRealtime()); Monitor.poke(carEvent = true) }, label = {
                             Text(if (simOn) "Car ON (tap to switch off)" else "Car OFF (tap to start)")
                         })
                     }

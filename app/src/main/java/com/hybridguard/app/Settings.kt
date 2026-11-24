@@ -72,6 +72,14 @@ data class Settings(
     /** Start reading the car only when the 12 V system shows the car is READY (charging voltage). */
     val voltageGate: Boolean = true,
     val readyVolts: Double = 13.2,
+    /**
+     * After the car went quiet, the 12 V can stay above [readyVolts] for minutes
+     * (charge left from driving): no new session until it rises by this much
+     * (the car charges it again: READY) ...
+     */
+    val restartRiseVolts: Double = 0.3,
+    /** ... or this many minutes passed, or the car's Bluetooth / charger / "Check now" says the car is on. */
+    val afterOffHoldMin: Int = 5,
 
     // ---- Alarms
     val alarmsEnabled: Boolean = true,
@@ -151,6 +159,8 @@ data class Settings(
         put("carLinkIntervalSec", carLinkIntervalSec)
         put("voltageGate", voltageGate)
         put("readyVolts", readyVolts)
+        put("restartRiseVolts", restartRiseVolts)
+        put("afterOffHoldMin", afterOffHoldMin)
         put("alarmsEnabled", alarmsEnabled)
         put("alarmOverrides", JSONObject().apply {
             alarmOverrides.forEach { (id, o) ->
@@ -265,6 +275,8 @@ data class Settings(
                 carLinkIntervalSec = int("carLinkIntervalSec", d.carLinkIntervalSec),
                 voltageGate = bool("voltageGate", d.voltageGate),
                 readyVolts = dbl("readyVolts", d.readyVolts),
+                restartRiseVolts = dbl("restartRiseVolts", d.restartRiseVolts),
+                afterOffHoldMin = int("afterOffHoldMin", d.afterOffHoldMin),
                 alarmsEnabled = bool("alarmsEnabled", d.alarmsEnabled),
                 alarmOverrides = overrides,
                 alarmSound = bool("alarmSound", d.alarmSound),

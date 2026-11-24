@@ -59,6 +59,18 @@ data class SessionConfig(
     val carSilentAfterMs: Long = 30_000,
     /** Retry delay while the car does not answer at session start. */
     val waitForCarRetryMs: Long = 3_000,
+    /**
+     * End the session when the car has not answered at all for this long at
+     * its start: the 12 V can stay above the READY voltage for minutes after
+     * the car is switched off, so a parked car must not be asked forever.
+     */
+    val waitForCarGiveUpMs: Long = 60_000,
+    /**
+     * The car is READY from this 12 V voltage (`ATRV`, answered by the adapter
+     * itself). Checked on every (re)connection and while waiting for the car:
+     * below it the session ends instead of asking the car. Null: no check.
+     */
+    val readyVolts: Double? = null,
     /** Delays between reconnect attempts; the last one repeats. */
     val reconnectDelaysMs: List<Long> = listOf(2_000, 5_000, 10_000),
     /** Probe again even if this car has a cached probe for the profile version. */
@@ -76,6 +88,23 @@ data class SessionConfig(
 )
 
 enum class SessionPhase { CONNECTING, WAITING_FOR_CAR, PROBING, POLLING, RECONNECTING, ENDED }
+
+/** Why a session ended. */
+enum class SessionEnd {
+    /** Cancelled by the caller. */
+    STOPPED,
+
+    /** The car answered, then stopped answering ([SessionConfig.carSilentAfterMs]). */
+    CAR_SILENT,
+
+    /** The 12 V fell below [SessionConfig.readyVolts]: the car is switched off. */
+    CAR_OFF,
+
+    /** The car never answered ([SessionConfig.waitForCarGiveUpMs]). */
+    NO_ANSWER,
+
+    PROFILE_ERROR,
+}
 
 data class ProbeProgress(val done: Int, val total: Int)
 
@@ -108,6 +137,7 @@ data class SessionState(
     val reconnects: Int = 0,
     val logFile: File? = null,
     val endReason: String? = null,
+    val endCause: SessionEnd? = null,
     /** The last few requests and raw replies, newest last: shown while waiting so problems are visible in the car. */
     val recent: List<RawSample> = emptyList(),
     /** Discovery scan / watch mode; null until the car has answered. */
@@ -117,6 +147,10 @@ data class SessionState(
 )
 
 private class CarSilentException : Exception("the car stopped answering")
+
+private class CarOffException(val volts: Double) : Exception("the car is switched off")
+
+private class NoAnswerException(val forMs: Long) : Exception("the car does not answer")
 
 /**
  * One logging session (docs/05 Phase 1): connect, wait for the car, read VIN
@@ -192,6 +226,8 @@ class SessionRunner(
 
     /** Turns the profile's rules into the ones run (the driver's settings); replaced live by [setAlarmRules]. */
     @Volatile private var alarmTransform: (AlarmRules?) -> AlarmRules? = { it?.withOverrides(emptyMap()) }
+    /** When the session started waiting for the car's first answer; null once it answered. */
+    private var waitingSince: Long? = null
     @Volatile private var alarmTransformVersion = 0
     private var appliedAlarmTransform = 0
     @Volatile private var wantedVersion = 0
@@ -202,6 +238,7 @@ class SessionRunner(
     suspend fun run(): File? {
         startMono = monotonicMs()
         var endReason = "stopped"
+        var endCause = SessionEnd.STOPPED
         var failures = 0
         try {
             while (true) {
@@ -211,9 +248,19 @@ class SessionRunner(
                     throw e
                 } catch (e: CarSilentException) {
                     endReason = "car stopped answering for ${config.carSilentAfterMs / 1000} s"
+                    endCause = SessionEnd.CAR_SILENT
+                    break
+                } catch (e: CarOffException) {
+                    endReason = "12 V at %.1f V: the car is switched off".format(Locale.US, e.volts)
+                    endCause = SessionEnd.CAR_OFF
+                    break
+                } catch (e: NoAnswerException) {
+                    endReason = "the car did not answer for ${e.forMs / 1000} s"
+                    endCause = SessionEnd.NO_ANSWER
                     break
                 } catch (e: ProfileFormatException) {
                     endReason = "profile error: ${e.message}"
+                    endCause = SessionEnd.PROFILE_ERROR
                     break
                 } catch (e: Exception) {
                     // Stopped by the user while a transport error was in flight: that is a stop, not a dropout.
@@ -239,7 +286,9 @@ class SessionRunner(
                     SessionSummary(t(), _state.value.samples, _state.value.okSamples, _state.value.reconnects, endReason),
                 )
                 writer = null
-                _state.update { it.copy(phase = SessionPhase.ENDED, message = endReason, endReason = endReason, logFile = file ?: it.logFile) }
+                _state.update {
+                    it.copy(phase = SessionPhase.ENDED, message = endReason, endReason = endReason, endCause = endCause, logFile = file ?: it.logFile)
+                }
             }
         }
         return _state.value.logFile
@@ -316,6 +365,14 @@ class SessionRunner(
         try {
             val init = elm.open()
             _state.update { it.copy(adapter = init.adapter) }
+            // After a dropout the car may have been switched off meanwhile: look at the 12 V
+            // (the init's ATRV) before asking the car anything.
+            init.adapter.voltage?.let(Elm327::parseVolts)?.let { volts ->
+                if (carOff(volts)) {
+                    writer?.event(t(), "carOff", "12 V at $volts V on connecting")
+                    throw CarOffException(volts)
+                }
+            }
             if (!connectedOnce) {
                 connectedOnce = true
                 openLog(init)
@@ -329,6 +386,8 @@ class SessionRunner(
             withContext(NonCancellable) { runCatching { elm.close() } }
         }
     }
+
+    private fun carOff(volts: Double): Boolean = config.readyVolts?.let { volts < it } == true
 
     /** The log starts with the adapter, so a car that never answers still leaves a record of its replies. */
     private fun openLog(init: InitReport) {
@@ -353,6 +412,7 @@ class SessionRunner(
         var bitmaps: List<RawSample>
         var attempt = 0
         _state.update { it.copy(phase = SessionPhase.WAITING_FOR_CAR, message = "Asking the car for its VIN") }
+        val since = waitingSince ?: t().also { waitingSince = it } // kept over reconnects
         while (true) {
             attempt++
             vinSample = elm.read(ObdRequest.fromHex(ENGINE_HEADER, "0902", 1_000, multiFrame = true)).also(::record)
@@ -372,11 +432,22 @@ class SessionRunner(
                 bitmaps = readBitmaps(elm, ObdRequest.FUNCTIONAL_HEADER)
                 break
             }
+            val waited = t() - since
+            if (waited >= config.waitForCarGiveUpMs) throw NoAnswerException(waited)
             _state.update {
                 it.copy(message = "The car is not answering (attempt $attempt). Is it in READY? The last replies are below.")
             }
             delay(config.waitForCarRetryMs)
+            if (config.readyVolts != null) {
+                elm.voltage()?.let { volts ->
+                    if (carOff(volts)) {
+                        writer?.event(t(), "carOff", "12 V at $volts V while waiting for the car")
+                        throw CarOffException(volts)
+                    }
+                }
+            }
         }
+        waitingSince = null
 
         // 2. Profile.
         val vin = parseVin(vinSample)

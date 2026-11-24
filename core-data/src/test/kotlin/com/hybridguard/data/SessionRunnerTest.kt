@@ -41,12 +41,13 @@ class SessionRunnerTest {
         transport: () -> ObdTransport,
         choice: ProfileChoice = ProfileChoice.Auto,
         source: String = "simulated",
+        readyVolts: Double? = null,
     ) = SessionRunner(
         transportFactory = transport,
         loader = loader,
         selector = selector,
         logDir = dir,
-        config = SessionConfig(appVersion = "test", source = source, profileChoice = choice),
+        config = SessionConfig(appVersion = "test", source = source, profileChoice = choice, readyVolts = readyVolts),
         monotonicMs = { testScheduler.currentTime },
         epochMs = { 1_763_000_000_000 + testScheduler.currentTime },
     )
@@ -205,6 +206,60 @@ class SessionRunnerTest {
         assertTrue(events.containsAll(listOf("disconnected", "reconnected")), "$events")
         assertEquals(1, dir.listFiles()!!.size, "one session, one file")
     }
+
+    @Test
+    fun reconnectAfterTheCarWasSwitchedOffEndsTheSessionWithoutAskingTheCar() = runTest {
+        val car = simulatedCar()
+        var connections = 0
+        val runner = runner({
+            connections++
+            if (connections == 1) DropsAfter(car, writes = 200) else car
+        }, readyVolts = 13.2)
+        car.batteryVolts = 14.2
+        val job = async { runner.run() }
+        // The car is switched off while the link is down: the 12 V falls from charging.
+        while (connections < 2) {
+            advanceTimeBy(100)
+            if (runner.state.value.phase == SessionPhase.RECONNECTING) car.batteryVolts = 12.9
+        }
+        advanceTimeBy(5_000)
+
+        assertTrue(job.isCompleted, "session ended by itself")
+        assertEquals(SessionEnd.CAR_OFF, runner.state.value.endCause)
+        val entries = SessionLogReader.readAll(runner.state.value.logFile!!)
+        val reconnectAt = entries.indexOfLast { it is LogEntry.Event && it.name == "disconnected" }
+        assertTrue(entries.drop(reconnectAt).none { it is LogEntry.Sample }, "nothing sent to the car after the reconnect")
+        assertTrue(end(entries).contains("switched off"), end(entries))
+    }
+
+    @Test
+    fun waitingForACarThatNeverAnswersEnds() = runTest {
+        val runner = runner({ simulatedCar().apply { silent = true } }, readyVolts = 13.2)
+        val job = async { runner.run() }
+        advanceTimeBy(59_000)
+        assertEquals(SessionPhase.WAITING_FOR_CAR, runner.state.value.phase)
+        advanceTimeBy(10_000)
+
+        assertTrue(job.isCompleted, "a parked car is not asked forever")
+        assertEquals(SessionEnd.NO_ANSWER, runner.state.value.endCause)
+        assertTrue(end(SessionLogReader.readAll(runner.state.value.logFile!!)).contains("did not answer"))
+    }
+
+    @Test
+    fun waitingStopsWhenTheVoltageShowsTheCarIsOff() = runTest {
+        val car = simulatedCar().apply { silent = true; batteryVolts = 13.4 } // charge left from the drive
+        val runner = runner({ car }, readyVolts = 13.2)
+        val job = async { runner.run() }
+        advanceTimeBy(10_000)
+        assertEquals(SessionPhase.WAITING_FOR_CAR, runner.state.value.phase)
+        car.batteryVolts = 13.1
+        advanceTimeBy(6_000)
+
+        assertTrue(job.isCompleted)
+        assertEquals(SessionEnd.CAR_OFF, runner.state.value.endCause)
+    }
+
+    private fun end(entries: List<LogEntry>) = assertIs<LogEntry.End>(entries.last()).summary["reason"].toString()
 
     @Test
     fun manualProfileChoiceIsUsedAndRemembered() = runTest {

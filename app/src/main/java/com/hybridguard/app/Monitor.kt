@@ -18,6 +18,7 @@ import com.hybridguard.data.ProfileChoice
 import com.hybridguard.data.notGiven
 import com.hybridguard.data.Role
 import com.hybridguard.data.SessionConfig
+import com.hybridguard.data.SessionEnd
 import com.hybridguard.data.SessionMode
 import com.hybridguard.data.SessionPhase
 import com.hybridguard.data.SessionRunner
@@ -87,6 +88,11 @@ data class MonitorStatus(
  *    more than ~15 min) or is out of range. Below the READY voltage: parked.
  * 3. The car is READY: run a [SessionRunner] until the car goes quiet,
  *    recording a session and raising the alarms.
+ * 4. The car went quiet: the 12 V battery often stays above the READY
+ *    voltage for minutes after charging, so no new session starts until the
+ *    voltage drops below it, rises again (the car charges it: READY), the
+ *    driver does something (car's Bluetooth, charger, "Check now"), or the
+ *    hold time passes.
  */
 object Monitor {
     private const val TAG = "HybridGuard"
@@ -107,6 +113,11 @@ object Monitor {
     private val gateLock = Any()
     private var gate = AlarmGate()
     private var gateSettings: Pair<Int, Int>? = null
+
+    /** The car went quiet: the 12 V must show it is READY again before the next session. */
+    private data class AfterOff(val sinceMono: Long, val lowestVolts: Double? = null)
+
+    @Volatile private var afterOff: AfterOff? = null
 
     @Volatile private var acknowledgedAt = 0L
     /** The Battery tab is on screen: its cell requests are polled (only then). */
@@ -144,8 +155,14 @@ object Monitor {
         Notifier.clearAlarms(app)
     }
 
-    /** Look for the car now (a trigger fired, or "Check now"). */
-    fun poke() {
+    /**
+     * Look for the car now. [carEvent]: something says the car may have been
+     * switched on (its Bluetooth connected, the phone started charging,
+     * "Check now"), so the hold after the car went quiet ends; the timer and
+     * settings changes only look.
+     */
+    fun poke(carEvent: Boolean = false) {
+        if (carEvent) afterOff = null
         pokes.trySend(Unit)
     }
 
@@ -241,6 +258,27 @@ object Monitor {
         }
         val now = System.currentTimeMillis()
         _status.update { it.copy(volts = volts, voltsEpochMs = now) }
+        if (s.voltageGate && volts != null && volts < s.readyVolts) afterOff = null
+        val hold = afterOff
+        if (hold != null && s.voltageGate && volts != null) {
+            val mono = SystemClock.elapsedRealtime()
+            val lowest = minOf(hold.lowestVolts ?: volts, volts)
+            val holdMs = s.afterOffHoldMin * 60_000L
+            if (volts >= lowest + s.restartRiseVolts || mono - hold.sinceMono >= holdMs) {
+                afterOff = null
+            } else {
+                afterOff = hold.copy(lowestVolts = lowest)
+                _status.update { it.copy(awakeParkedSinceEpochMs = it.awakeParkedSinceEpochMs ?: now) }
+                val wait = interval(s.parkedIntervalSec)
+                val left = ((holdMs - (mono - hold.sinceMono)) / 60_000L + 1).coerceAtLeast(1)
+                setPhase(
+                    MonitorPhase.PARKED,
+                    "The car went quiet. 12 V at %.1f V: still above %.1f V from charging, it falls slowly. ".format(volts, s.readyVolts) +
+                        "Reading the car again when it rises by %.1f V (READY), or in %d min. Next look in %d s".format(s.restartRiseVolts, left, wait),
+                )
+                return wait * 1000L
+            }
+        }
         if (s.voltageGate && volts != null && volts < s.readyVolts) {
             _status.update { it.copy(awakeParkedSinceEpochMs = it.awakeParkedSinceEpochMs ?: now) }
             val wait = interval(s.parkedIntervalSec)
@@ -416,6 +454,10 @@ object Monitor {
                 restarting -> "model year changed: reading the car again"
                 else -> runner.state.value.endReason ?: "stopped"
             }
+            val cause = runner.state.value.endCause
+            if (!restarting && (gaveUp || cause == SessionEnd.CAR_SILENT || cause == SessionEnd.CAR_OFF || cause == SessionEnd.NO_ANSWER)) {
+                afterOff = AfterOff(SystemClock.elapsedRealtime())
+            }
         } finally {
             restartSession = null
             activeRunner = null
@@ -474,6 +516,7 @@ object Monitor {
                 source = if (s.source == DataSource.SIMULATED) "simulated" else "bluetooth",
                 profileChoice = choice,
                 deviceName = s.deviceName,
+                readyVolts = s.readyVolts.takeIf { s.voltageGate },
                 saveLog = s.rawLog,
                 rememberCar = s.source == DataSource.BLUETOOTH,
                 allowDiscovery = false,
