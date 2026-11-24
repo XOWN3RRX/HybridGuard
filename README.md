@@ -63,7 +63,15 @@ dashboard; the phone app (`:app`) is built for background monitoring.
    The notification shows the values you chose (default: engine pump,
    inverter pump, coolant, inverter coolant), updated every 2 s.
 4. **Car off.** When the car stops answering for 30 s the session ends and
-   is saved; the app goes back to waiting.
+   is saved; the app goes back to waiting. The 12 V battery often stays
+   above the READY voltage for some minutes after a drive (charge left
+   from the DC-DC converter), so the app does not read the car again until
+   the voltage rises by 0.3 V (the car charges it: READY again) or 5 min
+   have passed (both settings). The car's Bluetooth connecting, the phone
+   starting to charge or "Check now" end that wait at once. A session also
+   ends without asking the car when the 12 V is below the READY voltage on
+   a reconnection or while waiting for the car, and when the car has not
+   answered at all for 60 s.
 
 Ways to make waiting cheaper on the phone battery (Settings → Automatic
 connection): look **only while the phone is connected to the car's

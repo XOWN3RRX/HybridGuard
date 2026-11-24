@@ -29,7 +29,7 @@ class ActionReceiver : BroadcastReceiver() {
         val app = context.applicationContext as HybridGuardApp
         when (intent.action) {
             Notifier.ACTION_ACK -> Monitor.acknowledge()
-            Notifier.ACTION_CHECK -> Monitor.poke()
+            Notifier.ACTION_CHECK -> Monitor.poke(carEvent = true)
             Notifier.ACTION_STOP -> {
                 app.settings.update { it.copy(monitorEnabled = false) }
                 MonitorService.sync(app)
@@ -61,12 +61,12 @@ class ConnectionReceiver : BroadcastReceiver() {
                 BluetoothDevice.ACTION_ACL_CONNECTED -> {
                     val device = device(intent) ?: return
                     CarLink.connected += device.address
-                    if (device.address == s.carDeviceAddress || s.triggerMode == TriggerMode.ALWAYS) Monitor.poke()
+                    if (device.address == s.carDeviceAddress || s.triggerMode == TriggerMode.ALWAYS) Monitor.poke(carEvent = device.address == s.carDeviceAddress)
                 }
                 BluetoothDevice.ACTION_ACL_DISCONNECTED -> {
                     device(intent)?.let { CarLink.connected -= it.address }
                 }
-                Intent.ACTION_POWER_CONNECTED -> if (s.tryOnCharging) Monitor.poke()
+                Intent.ACTION_POWER_CONNECTED -> if (s.tryOnCharging) Monitor.poke(carEvent = true)
                 BluetoothAdapter.ACTION_STATE_CHANGED -> {
                     if (intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1) == BluetoothAdapter.STATE_ON) {
                         CarLink.refresh(context)

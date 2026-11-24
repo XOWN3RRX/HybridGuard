@@ -101,6 +101,15 @@ class Elm327(
         RawSample(t, request.header, payload, reply.text, status)
     }
 
+    /**
+     * The adapter's supply voltage (`ATRV`) during a session, or null if it
+     * does not say. The adapter answers itself: nothing goes on the car's bus.
+     */
+    suspend fun voltage(): Double? = lock.withLock {
+        val reply = exchange("ATRV", config.commandTimeoutMs)
+        if (reply.timedOut) null else parseVolts(reply.text)
+    }
+
     private suspend fun initialize(): InitReport {
         val steps = mutableListOf<InitStep>()
 

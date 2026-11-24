@@ -162,6 +162,14 @@ fun SettingsScreen() {
         ) { v -> set { it.copy(voltageGate = v) } }
         if (s.voltageGate) {
             NumberRow("READY from", s.readyVolts, "V", 12.6, 14.5) { v -> set { it.copy(readyVolts = v) } }
+            NumberRow(
+                "After the car goes quiet: READY again on a rise of", s.restartRiseVolts, "V", 0.1, 1.5,
+                subtitle = "%.1f V: the 12 V stays high for minutes after a drive, so the car is read again only when the voltage rises".format(s.restartRiseVolts),
+            ) { v -> set { it.copy(restartRiseVolts = v) } }
+            NumberRow(
+                "After the car goes quiet: try again anyway after", s.afterOffHoldMin.toDouble(), "min", 1.0, 60.0,
+                subtitle = "${s.afterOffHoldMin} min (sooner when the car's Bluetooth connects, the phone starts charging, or Check now)",
+            ) { v -> set { it.copy(afterOffHoldMin = v.toInt()) } }
         }
 
         // ------------------------------------------------------------ alarms
