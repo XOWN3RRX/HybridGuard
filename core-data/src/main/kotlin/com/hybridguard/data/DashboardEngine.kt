@@ -49,7 +49,31 @@ class DashboardEngine(
     /** Highest warm-up level reached while the temperatures kept arriving: the advice only goes up. */
     private var warmUpReached: WarmUpLevel? = null
 
+    /** READY's signal ids, and the requests that carry them. */
+    private val readyIds: Set<String> = roles.signalsFor(Role.READY).toSet()
+    private val readyIdsByCommand: Map<String, List<String>> = catalog.commands
+        .associate { c -> c.key to c.signals.map { it.id }.filter { it in readyIds } }
+        .filterValues { it.isNotEmpty() }
+
+    /** Failed replies in a row, per request that carries READY. */
+    private val readyFailures = mutableMapOf<String, Int>()
+
+    /**
+     * The request [commandKey] got no usable reply (no data, timeout, refused).
+     * Values are normally held until they go stale, but READY is not held through
+     * silence: a car switched off often stops answering instead of saying "not
+     * READY", so after [READY_FAILED_REPLIES] failed replies in a row READY is
+     * unknown, and the checks that run only while READY stop.
+     */
+    fun noReply(commandKey: String) {
+        val ids = readyIdsByCommand[commandKey] ?: return
+        val failures = (readyFailures[commandKey] ?: 0) + 1
+        readyFailures[commandKey] = failures
+        if (failures >= READY_FAILED_REPLIES) ids.forEach { latest.remove(it) }
+    }
+
     fun update(decoded: DecodedSample) {
+        readyFailures.remove(decoded.commandKey)
         for ((id, value) in decoded.values) {
             val reading = SignalReading(decoded.tMs, id, value)
             // Hold the last good value through a momentary "no value" (e.g. the shift lever
@@ -324,6 +348,9 @@ class DashboardEngine(
         /** Gaps longer than this (dropout, pause) are not integrated. */
         const val MAX_GAP_MS = 5_000L
         const val MIN_FRESH_MS = 5_000L
+
+        /** Failed replies in a row to READY's request before READY counts as unknown (one odd reply is not the car off). */
+        const val READY_FAILED_REPLIES = 2
         const val MAX_FRESH_MS = 120_000L
         const val ENGINE_STOPPED_RPM = 100.0
         const val BATTERY_IDLE_KW = DashboardState.BATTERY_IDLE_KW
