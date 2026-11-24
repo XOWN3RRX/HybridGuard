@@ -20,6 +20,27 @@ class DashboardEngineTest {
         DecodedSample(t, "test", RawSample.Status.OK, values.toMap())
 
     @Test
+    fun readyIsNotHeldWhenTheCarStopsAnswering() {
+        // Owner's logs session-20261114-161118 and -180641: READY (0F 03) until the end,
+        // then the hybrid ECU answered NO DATA instead of "not READY".
+        val key = "7D2:221076"
+        fun ready(t: Long) = DecodedSample(t, key, RawSample.Status.OK, mapOf("COROLLAHYBRID_READY" to n(1.0)))
+        val e = DashboardEngine(catalog)
+        e.update(ready(0))
+        e.update(ready(1_000))
+        e.noReply(key)
+        assertEquals(true, e.state(2_100).ready, "one odd reply is not the car off")
+        e.update(ready(3_000))
+        e.noReply(key)
+        e.noReply("7E0:010C") // another request failing does not count
+        assertEquals(true, e.state(4_100).ready, "the count starts again after a good reply")
+        e.noReply(key)
+        assertNull(e.state(5_100).ready, "two failed replies in a row: READY unknown, not held for its fresh time")
+        e.update(ready(6_000))
+        assertEquals(true, e.state(6_100).ready)
+    }
+
+    @Test
     fun warmUpRulesComeFromTheProfile() {
         assertEquals(WarmUpRules(50.0, 80.0, 40.0, 70.0, 50.0, 3000.0), rules)
         assertNull(loader.warmUpRules("sae-j1979"))

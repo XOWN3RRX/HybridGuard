@@ -753,7 +753,9 @@ class SessionRunner(
         // Keyed by catalog command, so a request sent via the broadcast address shows with its signals.
         val key = decoded?.commandKey ?: commandKey(sample.header, sample.request)
         val engine = dashboardEngine
-        if (engine != null && decoded != null && decoded.status == RawSample.Status.OK) engine.update(decoded)
+        if (engine != null && decoded != null) {
+            if (decoded.status == RawSample.Status.OK) engine.update(decoded) else engine.noReply(decoded.commandKey)
+        }
         val dashboard = engine?.state(now, sourceBadge = config.source.takeIf { it != LIVE_SOURCE })
         _state.update {
             it.copy(

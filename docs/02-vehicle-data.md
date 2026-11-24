@@ -500,8 +500,18 @@ hybrids, and the Venza list is a good source of candidates for `7D2`.
 From the same Venza list, a candidate for the **READY** flag (item 3 in
 section D): `7D2 22 1076` bix 15 (byte 1, lowest bit), "Ready to drive".
 The owner's car answers it with `0F 03` or `0F 0B` in both logs, always
-in READY, so the bit was 1 as expected. Untested 2019 until a log shows it
-at 0 with the ignition ON but not READY. Also there: `7D2 22 1060`
+in READY, so the bit was 1 as expected. **Confirmed 2019** in
+session-20261114-101039: `0F 02` (bit 0) for the first 30 s with the
+ignition ON and the 12 V at 11.5 V (not READY yet), then `0F 03` / `0F 07`
+in READY (12 V at 14.2-14.4 V), and `0F 02` again at switch-off.
+session-20261114-010856 ends with `0F 00` (switched off). Switching off
+does not always give a 0: in session-20261114-161118 and -180641 the last
+answer is `0F 03` and the next one is `NO DATA` (the hybrid ECU goes
+silent), so the app takes READY as unknown after two failed replies in a
+row instead of holding the last 1. In both, the engine ECU's 12 V
+(`01 42`) still read 13.5-13.6 V right after switch-off: above the 13.2 V
+READY voltage, which is why a new session waits for the voltage to rise
+again. Also there: `7D2 22 1060`
 accelerator pedal (`/2` %, read `00` while parked).
 
 The READY candidate is in the Corolla profile since profile version 4
@@ -624,7 +634,7 @@ important first. Two ways to settle them:
 |---|---|---|---|
 | 1 | Shift position (P / R / N / D / B) | gear on the dashboard, door rule (docs/07) | **found**: `7D2 22 1061` (C3), reconfirm in a drive |
 | 2 | `S4` shown next to `D` in the mockup | dashboard | meaning unknown (docs/06 q6) |
-| 3 | READY flag (hybrid system ready vs ignition on) | EV badge, session start | `7D2 22 1076` bix 15 in the profile (from the Venza Hybrid list, C3); needs a log with ignition ON, not READY |
+| 3 | READY flag (hybrid system ready vs ignition on) | EV badge, session start | **confirmed 2019**: `7D2 22 1076` bix 15 (C3), 0 with the ignition ON not READY and at switch-off |
 | 4 | EV mode button state | EV badge | ? (fallback: computed, C.5) |
 | 5 | Drive mode (Eco / Normal / Sport) | dashboard (optional) | lead for Sport (`7D2 22 181D`, C3); Eco not seen on `7D2` |
 | 6 | MG1 and MG2 rpm and torque separately | power flow | `7D2 22 10A1` answers; which motor it is is unknown |
