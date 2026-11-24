@@ -53,8 +53,10 @@ the author's other projects. Read `README.md` first.
 
 - When a car test contradicts the docs, update the doc in the same change.
 - Run `./gradlew test assembleDebug` before committing.
-- **Changes reach `master` only through pull requests** (a ruleset on
-  GitHub blocks direct pushes, force-pushes and deleting it). Work on a
+- **Changes reach `master` only through pull requests** (a branch
+  protection rule on GitHub, enforced for admins too, blocks direct pushes,
+  force-pushes and deleting it, and requires the `build` check to pass on
+  an up-to-date branch with all review conversations resolved). Work on a
   branch from `master`, push every commit to that branch straight away,
   and open a pull request (`gh pr create`). The GitHub repo
   (`XOWN3RRX/HybridGuard`) is `origin`. If a push is rejected, stop and
